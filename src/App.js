@@ -1,7 +1,6 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
-
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from './utils/auctionABI';
 
 function App() {
@@ -12,6 +11,7 @@ function App() {
 
   const [bidValue, setBidValue] = useState('');
   const [fake, setFake] = useState(false);
+  const [nonce, setNonce] = useState('');
   const [blindedBid, setBlindedBid] = useState();
   const [hashSent, setHashSent] = useState(false);
   const [revealed, setRevealed] = useState(false);
@@ -36,25 +36,24 @@ function App() {
     init();
   }, []);
 
-  const handleRegister = async () => {
-    await contract.register();
-    alert('¡Registrado!');
-  };
-
   const handleCreateHash = () => {
+    if (!nonce) {
+      alert('Introduce un nonce (secreto)');
+      return;
+    }
     const hash = ethers.utils.keccak256(
       ethers.utils.defaultAbiCoder.encode(
-        ['uint256', 'bool'],
-        [ethers.utils.parseEther(bidValue), fake]
+        ['uint256', 'bool', 'bytes32'],
+        [ethers.utils.parseEther(bidValue), fake, ethers.utils.formatBytes32String(nonce)]
       )
     );
     setBlindedBid(hash);
-    alert('Hash generado: listo para enviar');
+    alert('Hash generado y listo para enviar');
   };
 
   const handleSendBid = async () => {
     const deposit = ethers.utils.parseEther(bidValue);
-    const tx = await contract.bid(blindedBid, { value: deposit });
+    const tx = await contract.placeBid(blindedBid, { value: deposit });
     await tx.wait();
     setHashSent(true);
     alert('¡Puja enviada!');
@@ -62,14 +61,14 @@ function App() {
 
   const handleReveal = async () => {
     const value = ethers.utils.parseEther(bidValue);
-    const tx = await contract.reveal([value], [fake]);
+    const tx = await contract.revealBid(value, ethers.utils.formatBytes32String(nonce));
     await tx.wait();
     setRevealed(true);
     alert('¡Puja revelada!');
   };
 
   const handleEnd = async () => {
-    const tx = await contract.auctionEnd();
+    const tx = await contract.endAuction();
     await tx.wait();
     alert('Subasta finalizada');
   };
@@ -82,20 +81,22 @@ function App() {
 
   return (
     <div style={{ padding: 30 }}>
-      <h1>🔐 Subasta  Ethers</h1>
+      <h1>🔐 Subasta Blindada con Ethers</h1>
       <p><strong>Conectado como:</strong> {account}</p>
 
       <hr />
-      <h3>1. Registro</h3>
-      <button onClick={handleRegister}>Registrarse</button>
-
-      <hr />
-      <h3>2. Crear Puja</h3>
+      <h3>1. Crear Puja</h3>
       <input
         type="text"
         placeholder="Valor en ETH"
         value={bidValue}
         onChange={(e) => setBidValue(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Nonce secreto"
+        value={nonce}
+        onChange={(e) => setNonce(e.target.value)}
       />
       <label>
         <input type="checkbox" checked={fake} onChange={() => setFake(!fake)} />
@@ -106,15 +107,15 @@ function App() {
       <button onClick={handleSendBid} disabled={!blindedBid}>Enviar puja</button>
 
       <hr />
-      <h3>3. Revelar Puja</h3>
+      <h3>2. Revelar Puja</h3>
       <button onClick={handleReveal} disabled={!hashSent}>Revelar</button>
 
       <hr />
-      <h3>4. Finalizar Subasta</h3>
+      <h3>3. Finalizar Subasta</h3>
       <button onClick={handleEnd}>Finalizar</button>
 
       <hr />
-      <h3>5. Retirar Reembolso</h3>
+      <h3>4. Retirar Reembolso</h3>
       <button onClick={handleWithdraw}>Retirar</button>
     </div>
   );
