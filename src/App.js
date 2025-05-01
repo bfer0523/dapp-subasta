@@ -1,7 +1,14 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
-import { ethers } from 'ethers';
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from './utils/auctionABI';
+import {
+  BrowserProvider,
+  Contract,
+  keccak256,
+  parseEther,
+  encodeBytes32String,
+  AbiCoder
+} from 'ethers';
+import { contractAddress, contractABI } from './utils/auctionABI';
 
 function App() {
   const [provider, setProvider] = useState();
@@ -16,18 +23,20 @@ function App() {
   const [hashSent, setHashSent] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
+  const abiCoder = new AbiCoder(); // CORRECCIÓN: crear instancia de AbiCoder
+
   useEffect(() => {
     const init = async () => {
       if (window.ethereum) {
-        const prov = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = prov.getSigner();
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-        const accounts = await prov.send("eth_requestAccounts", []);
+        const prov = new BrowserProvider(window.ethereum);
+        const signer = await prov.getSigner();
+        const address = await signer.getAddress();
+        const contract = new Contract(contractAddress, contractABI, signer);
 
         setProvider(prov);
         setSigner(signer);
         setContract(contract);
-        setAccount(accounts[0]);
+        setAccount(address);
       } else {
         alert('MetaMask no está instalada');
       }
@@ -41,10 +50,10 @@ function App() {
       alert('Introduce un nonce (secreto)');
       return;
     }
-    const hash = ethers.utils.keccak256(
-      ethers.utils.defaultAbiCoder.encode(
+    const hash = keccak256(
+      abiCoder.encode(
         ['uint256', 'bool', 'bytes32'],
-        [ethers.utils.parseEther(bidValue), fake, ethers.utils.formatBytes32String(nonce)]
+        [parseEther(bidValue), fake, encodeBytes32String(nonce)] // CORRECCIÓN: encodeBytes32String en vez de formatBytes32String
       )
     );
     setBlindedBid(hash);
@@ -52,23 +61,31 @@ function App() {
   };
 
   const handleSendBid = async () => {
-    const deposit = ethers.utils.parseEther(bidValue);
-    const tx = await contract.placeBid(blindedBid, { value: deposit });
+    const deposit = parseEther(bidValue);
+    const tx = await contract.bid(blindedBid, { value: deposit });
     await tx.wait();
     setHashSent(true);
     alert('¡Puja enviada!');
   };
 
   const handleReveal = async () => {
-    const value = ethers.utils.parseEther(bidValue);
-    const tx = await contract.revealBid(value, ethers.utils.formatBytes32String(nonce));
-    await tx.wait();
-    setRevealed(true);
-    alert('¡Puja revelada!');
+    try {
+      const value = parseEther(bidValue); // convierte ETH a wei (BigInt)
+      const valuesArray = [value]; // Un array de BigInt (no convertir a string)
+      const fakesArray = [fake]; // Un array de booleanos
+  
+      const tx = await contract.reveal(valuesArray, fakesArray);
+      await tx.wait();
+      setRevealed(true);
+      alert('¡Puja revelada!');
+    } catch (error) {
+      console.error(error);
+      alert('Error al revelar: ' + error.message);
+    }
   };
 
   const handleEnd = async () => {
-    const tx = await contract.endAuction();
+    const tx = await contract.auctionEnd();
     await tx.wait();
     alert('Subasta finalizada');
   };
