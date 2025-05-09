@@ -36,7 +36,7 @@ contract BlindAuction is ReentrancyGuard {
     event AuctionEnded(address winner, uint256 amount);
 
     modifier inState(AuctionState expected) {
-        require(state == expected, "Estado inválido para esta acción");
+        require(state == expected, "Estado invalido para esta accion");
         _;
     }
 
@@ -67,7 +67,7 @@ contract BlindAuction is ReentrancyGuard {
     }
 
     function activateAuction() external {
-        require(block.timestamp >= startTime, "Aún no comienza");
+        require(block.timestamp >= startTime, "Aun no comienza");
         require(state == AuctionState.Created, "Ya activada");
         state = AuctionState.Active;
     }
@@ -82,13 +82,13 @@ contract BlindAuction is ReentrancyGuard {
     }
 
     function startRevealPhase() external {
-        require(block.timestamp >= biddingEnd, "Aún no termina la fase de pujas");
-        require(state == AuctionState.Active, "Estado inválido");
+        require(block.timestamp >= biddingEnd, "Aun no termina la fase de pujas");
+        require(state == AuctionState.Active, "Estado invalido");
         state = AuctionState.Revealing;
     }
 
     function reveal(uint[] calldata _values, bytes32[] calldata _nonces) external inState(AuctionState.Revealing) {
-        require(block.timestamp < revealEnd, "Fase de revelación terminada");
+        require(block.timestamp < revealEnd, "Fase de revelacion terminada");
 
         Bid[] storage userBids = bids[msg.sender];
         uint refund;
@@ -143,7 +143,7 @@ contract BlindAuction is ReentrancyGuard {
     }
 
     function endAuction() external {
-        require(block.timestamp >= revealEnd, "Aún no termina la fase de revelación");
+        require(block.timestamp >= revealEnd, "Aun no termina la fase de revelacion");
         require(!auctionEnded, "Ya finalizada");
 
         auctionEnded = true;
@@ -155,7 +155,7 @@ contract BlindAuction is ReentrancyGuard {
     function resolveAuction() external nonReentrant {
         require(state == AuctionState.Ended, "Estado incorrecto");
         require(reserveRevealed, "Precio de reserva no revelado");
-        require(highestBid >= revealedReservePrice, "No se alcanzó el precio mínimo");
+        require(highestBid >= revealedReservePrice, "No se alcanzo el precio minimo");
 
         state = AuctionState.Resolved;
 

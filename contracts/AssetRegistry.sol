@@ -36,7 +36,7 @@ contract AssetRegistry is ERC721URIStorage, Ownable, ReentrancyGuard {
 
         assets[newAssetId] = Asset(name, description, mediaUrl, block.timestamp);
 
-        emit AssetCreated(newAssetId, msg.sender, name);
+        emit AssetCreated(newAssetId, msg.sender, name);  // ✅ Emisión del evento confirmada
         return newAssetId;
     }
 
